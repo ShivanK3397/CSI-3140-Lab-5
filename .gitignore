@@ -1,0 +1,28 @@
+# Moodle source (huge, pull separately via git clone)
+moodle/
+
+# Moodle data directory (runtime-generated, user uploads, sessions, caches)
+moodledata/
+
+# Docker volumes / persisted DB data
+db_data/
+
+# Environment/secrets
+.env
+*.env.local
+
+# Moodle-generated config (contains DB creds, paths specific to your machine)
+moodle/config.php
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Composer/npm artifacts (regenerable)
+vendor/
+node_modules/
+
+# Logs
+*.log

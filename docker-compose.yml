@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: moodle
+      MARIADB_USER: moodleuser
+      MARIADB_PASSWORD: moodlepass
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - moodle_net
+    # No ports mapped to host = not publicly exposed
+
+  moodle:
+    build:
+      context: .
+      dockerfile: Dockerfile.moodle
+    restart: unless-stopped
+    depends_on:
+      - db
+    volumes:
+      - ./moodle:/var/www/moodle
+      - ./moodledata:/var/www/moodledata
+    ports:
+      - "127.0.0.1:8080:80"   # bound to localhost only — not public
+    networks:
+      - moodle_net
+
+networks:
+  moodle_net:
+
+volumes:
+  db_data:
