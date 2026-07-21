@@ -46,6 +46,99 @@ switch ($payload['action']) {
 		if (!has_capability('local/securecoursehub:createrequest', $context)) {
 			securecoursehub_json_error(403, get_string('accessdenied', 'local_securecoursehub'));
 		}
+
+		try {
+            $requestid = local_securecoursehub_request_service::create_request(
+                $courseid,
+                (int) $USER->id,
+                $title,
+                $description
+            );
+        } catch (invalid_parameter_exception $e) {
+            securecoursehub_json_error(400, $e->getMessage());
+        } catch (Throwable $e) {
+            securecoursehub_json_error(500, get_string('unexpectederror', 'local_securecoursehub'));
+        }
+ 
+        echo json_encode([
+            'success' => true,
+            'message' => get_string('requestcreated', 'local_securecoursehub'),
+            'id'      => $requestid,
+            'userid'  => (int) $USER->id,
+        ]);
+        exit;
+ 
+    // -----------------------------------------------------------
+    // GET OWN REQUESTS — student fetches their own records.
+    // -----------------------------------------------------------
+    case 'get_own_requests':
+        $courseid = isset($payload['courseid']) ? (int) $payload['courseid'] : 0;
+ 
+        if ($courseid <= 0) {
+            securecoursehub_json_error(400, get_string('invalidrequest', 'local_securecoursehub'));
+        }
+ 
+        $course  = get_course($courseid);
+        $context = context_course::instance($course->id);
+        require_login($course);
+        require_capability('local/securecoursehub:viewown', $context);
+ 
+        $records  = local_securecoursehub_request_service::get_own_requests((int) $USER->id, $courseid);
+        $requests = [];
+ 
+        foreach ($records as $rec) {
+            // Only return fields needed by the client — no internal ids leaked.
+            $requests[] = [
+                'id'          => (int) $rec->id,
+                'title'       => $rec->title,
+                'description' => $rec->description,
+                'status'      => $rec->status,
+                'response'    => $rec->response,
+            ];
+        }
+ 
+        echo json_encode(['success' => true, 'requests' => $requests]);
+        exit;
+ 
+    // -----------------------------------------------------------
+    // GET COURSE REQUESTS — teacher fetches all course records.
+    // -----------------------------------------------------------
+    case 'get_course_requests':
+        $courseid     = isset($payload['courseid']) ? (int) $payload['courseid'] : 0;
+        $statusfilter = isset($payload['statusfilter'])
+            ? clean_param($payload['statusfilter'], PARAM_ALPHANUMEXT)
+            : '';
+ 
+        if ($courseid <= 0) {
+            securecoursehub_json_error(400, get_string('invalidrequest', 'local_securecoursehub'));
+        }
+ 
+        $course  = get_course($courseid);
+        $context = context_course::instance($course->id);
+        require_login($course);
+ 
+        // Only teachers/managers may read course-wide records.
+        if (!has_capability('local/securecoursehub:managecourserequests', $context) &&
+            !has_capability('local/securecoursehub:manageall', context_system::instance())) {
+            securecoursehub_json_error(403, get_string('accessdenied', 'local_securecoursehub'));
+        }
+ 
+        $records  = local_securecoursehub_request_service::get_course_requests($courseid, $statusfilter);
+        $requests = [];
+ 
+        foreach ($records as $rec) {
+            $requests[] = [
+                'id'          => (int) $rec->id,
+                'title'       => $rec->title,
+                'description' => $rec->description,
+                'status'      => $rec->status,
+                'response'    => $rec->response,
+            ];
+        }
+ 
+        echo json_encode(['success' => true, 'requests' => $requests]);
+        exit;
+		
 		$requestid = $DB->insert_record('local_securecoursehub_req', (object) [
 			'courseid' => $course->id,
 			'userid' => $USER->id,
